@@ -23,6 +23,7 @@ import { createPin } from "../utils/objectHandlers";
 import { produce } from "immer";
 
 import { Text, Icon, Slider, SliderFilledTrack, SliderThumb, SliderTrack, Stack, Tooltip } from "@chakra-ui/react";
+import PinDetails from "./PinDetails";
 
 export default function Canvas({ mode }: { mode: string }) {
   const canvasRef = useRef(null);
@@ -54,7 +55,8 @@ export default function Canvas({ mode }: { mode: string }) {
         const id = parseInt(e.e.dataTransfer.getData("text"));
         const currentObj = itemsRef.current.filter((e) => e.id === id)[0];
         if (currentObj.used === false) {
-          if (e.target?.name === "plan" && !fabricRef.current?.isTargetTransparent(e.target, x, y)) {
+          // if (e.target?.name === "plan" && !fabricRef.current?.isTargetTransparent(e.target, x, y)) {
+          if (e.target?.name == "plan") {
             createPin(x, y, currentObj.temp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
             removeRef.current(id);
           } else {
@@ -67,9 +69,13 @@ export default function Canvas({ mode }: { mode: string }) {
         calculateHeatMap();
       })
       .on("object:moving", (e) => {
+        calculateHeatMap();
+      })
+      .on("object:modified", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
           if (obj === e.target || obj.name !== "plan") return;
-          if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
+          // if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
+          if (e.target?.name == "pin" && !e.target.isContainedWithinObject(obj)) {
             console.log("object cannot go outside floor plan");
             deleteRef.current(e.target?.id, fabricRef.current);
           }
@@ -78,25 +84,30 @@ export default function Canvas({ mode }: { mode: string }) {
 
         calculateHeatMap();
       })
-      .on("object:modified", () => {
+      .on("selection:updated", (e) => {
+        const selectedObjects = fabricRef.current?.getActiveObjects();
+        if (selectedObjects) {
+          if (selectedObjects.length == 1) {
+            setPinRef.current(selectedObjects[0].id);
+          } else if (selectedObjects.length > 1) {
+            fabricRef.current?.discardActiveObject();
+          }
+        }
         calculateHeatMap();
       })
-      .on("selection:updated", (e) => {
-        if (e.selected?.length == 1) {
-          setPinRef.current(e.selected[0].id);
-        }
-        // setPinRef.current();
-      })
       .on("selection:created", (e) => {
-        if (e.selected?.length == 1) {
+        if (!e.selected) {
+          return;
+        }
+        if (e.selected.length == 1) {
           setPinRef.current(e.selected[0].id);
+        } else if (e.selected.length > 1) {
+          // prevents selection of more than one object
+          fabricRef.current?.discardActiveObject();
         }
       })
       .on("selection:cleared", () => {
         setPinRef.current(null);
-      })
-      .on("selection:updated", (e) => {
-        calculateHeatMap();
       })
       .on("object:removed", () => {
         calculateHeatMap();
@@ -118,11 +129,6 @@ export default function Canvas({ mode }: { mode: string }) {
       throw new Error("Canvas is null");
     }
     const objects = canvas.getObjects();
-    setItems(
-      produce((draft) => {
-        draft.filter((e) => e.id === id)[0].used = false;
-      })
-    );
 
     const deleteObject = objects.filter((e) => e.id === id)[0];
     // animate object deletion (fadeout)
@@ -137,6 +143,11 @@ export default function Canvas({ mode }: { mode: string }) {
       },
       onComplete: () => {
         canvas.remove(deleteObject);
+        setItems(
+          produce((draft) => {
+            draft.filter((e) => e.id === id)[0].used = false;
+          })
+        );
       },
       easing: fabric.util.ease.easeOutCubic,
     });
@@ -178,6 +189,7 @@ export default function Canvas({ mode }: { mode: string }) {
         selectable: false,
         name: "heatmap",
         excludeFromExport: true,
+        opacity: 0.7,
       });
       fabricRef.current?.add(heatmapImage);
       heatmapImage.sendToBack();
@@ -263,6 +275,10 @@ export default function Canvas({ mode }: { mode: string }) {
           throw new Error("Invalid JSON Data");
         }
         canvas.loadFromJSON(JSON.parse(json), () => {
+          if (!mainCanvasRef.current) {
+            return;
+          }
+
           setItems(initialItems);
           initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
           setTimeout(() => {
@@ -292,40 +308,49 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   const handleInput = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!fabricRef.current) {
-      throw new Error("Canvas not Loaded");
-    }
-
     try {
+      if (!fabricRef.current) {
+        throw new Error("Canvas not Loaded");
+      }
+
+      if (!e.target.files || e.target.files.length < 1) {
+        return;
+      }
+
       const content = await readFileContent(e.target.files[0]);
       const helper = new Helper(content);
       const svg = helper.toSVG();
       // const svg = sampleSvg;
       // console.log(svg);
-
       fabric.loadSVGFromString(svg, (objects, options) => {
         objects.forEach((object) => {
-          object.strokeWidth = 2;
-          object.fill = "rgb(255,255,255,0.01)";
+          // object.strokeWidth = 0.5;
+          // object.fill = "rgb(255,0,0,0.1)";
         });
+
+        if (!fabricRef.current) {
+          return;
+        }
+
         const obj = fabric.util.groupSVGElements(objects, options);
         obj.name = "plan";
         obj.selectable = false;
         obj
-          .scaleToHeight(fabricRef.current?.getHeight() * (3 / 4))
+          .scaleToHeight(fabricRef.current.getHeight() * (3 / 4))
+          .scaleToWidth(fabricRef.current.getWidth() * (3 / 4))
           .set({
-            left: fabricRef.current?.getWidth() / 2,
+            left: fabricRef.current.getWidth() / 2,
             top: fabricRef.current.getHeight() / 2,
-            strokeWidth: 12,
           })
           .setCoords();
+        obj.opacity = 0.7;
         fabricRef.current?.add(obj).centerObject(obj).renderAll();
-        obj.setCoords();
+        // obj.setCoords();
         // obj.sendToBack();
         if (mode === "edit") {
           setLoaded(true);
         }
-        obj.perPixelTargetFind = true;
+        // obj.perPixelTargetFind = true;
       });
     } catch (err) {
       console.log(err);
@@ -334,8 +359,11 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const [url, setUrl] = useState("");
 
-  const convertToImage = () => {
-    setUrl(fabricRef.current?.toDataURL() as string);
+  const convertToImage = (canvas: fabric.Canvas | null) => {
+    if (!canvas) {
+      throw new Error("Canvas not Loaded");
+    }
+    return canvas.toDataURL() as string;
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -347,9 +375,7 @@ export default function Canvas({ mode }: { mode: string }) {
   }, [items]);
 
   const mainCanvasRef = useRef<HTMLDivElement>(null);
-
   const [zoom, setZoom] = useState(1);
-
   const [currentPin, setCurrentPin] = useState(null);
   const setPinRef = useRef(setCurrentPin);
   return (
@@ -453,7 +479,8 @@ export default function Canvas({ mode }: { mode: string }) {
                   boxSize={6}
                   style={{ margin: "10px", cursor: "pointer" }}
                   onClick={() => {
-                    convertToImage();
+                    const imgurl = convertToImage(fabricRef.current);
+                    setUrl(imgurl);
                   }}
                 />
                 {url && (
@@ -509,16 +536,7 @@ export default function Canvas({ mode }: { mode: string }) {
           ) : (
             <div>Please load a floor plan</div>
           )}
-          {currentPin && (
-            <Stack spacing={1} style={{ width: "70%", marginTop: "12px" }}>
-              <Text fontSize="2xl" as="b">
-                Pin Details:
-              </Text>
-              <Text fontSize="md">Pin ID: {currentPin}</Text>
-              <Text fontSize="md">Pin Name: {items.filter((e) => e.id === currentPin)[0].name}</Text>
-              <Text fontSize="md">Temp: {items.filter((e) => e.id === currentPin)[0].temp}</Text>
-            </Stack>
-          )}
+          {currentPin && <PinDetails currentPinId={currentPin} items={items} />}
         </div>
       </div>
     </>
