@@ -2,7 +2,8 @@ import { fabric } from "fabric";
 
 export const zoomCanvasToValue = (canvas: fabric.Canvas | null, zoomValue: number) => {
   if (!canvas || !canvas.width || !canvas.height) {
-    throw new Error("Canvas is null");
+    // throw new Error("Canvas is null");
+    return;
   }
 
   const width: number = canvas.width;
@@ -13,7 +14,8 @@ export const zoomCanvasToValue = (canvas: fabric.Canvas | null, zoomValue: numbe
 
 export const zoomCanvas = (canvas: fabric.Canvas | null, action: string) => {
   if (!canvas) {
-    throw new Error("Canvas is null");
+    // throw new Error("Canvas is null");
+    return;
   }
 
   const zoom = canvas.getZoom();
@@ -70,7 +72,8 @@ export const zoomCanvas = (canvas: fabric.Canvas | null, action: string) => {
 
 export const panCanvas = (canvas: fabric.Canvas | null, direction: string) => {
   if (!canvas || !canvas.viewportTransform) {
-    throw new Error("Canvas is null");
+    // throw new Error("Canvas is null");
+    return;
   }
 
   const vpt = [...canvas.viewportTransform];

@@ -44,11 +44,8 @@ export const createPin = (
         fontSize: 18,
       });
       const pin = new fabric.Group([op, label, tempLabel], { hasControls: false });
-      pin.name = "pin";
-      pin.label = name;
-      pin.temp = temp;
-      pin.id = id;
-      pin.radius = radius;
+      pin.setOptions({ name: "pin", label: name, temp: temp, id: id, radius: radius });
+
       canvas.add(pin);
     },
     { crossOrigin: "anonymous" }
@@ -113,3 +110,34 @@ export const createPin = (
 //   // console.log(rect);
 //   // return rect;
 // };
+
+export const changeStrokeWidth = (stroke: number, canvas: fabric.Canvas | null) => {
+  if (!canvas) {
+    return;
+  }
+  const plans = canvas.getObjects().filter((e) => e.name === "plan");
+  if (plans.length > 0) {
+    const plan = plans[0];
+    const items = plan._objects;
+    items.forEach((e: any) => {
+      // console.log(e);
+      e.strokeWidth = stroke;
+    });
+    canvas.remove(plan);
+    const obj = new fabric.Group(items);
+    // console.log(obj);
+    obj.name = "plan";
+    obj.selectable = false;
+    obj
+      .scaleToHeight(canvas.getHeight() * (3 / 4))
+      .set({
+        left: canvas.getWidth() / 2,
+        top: canvas.getHeight() / 2,
+      })
+      .setCoords();
+    obj.opacity = 0.7;
+    canvas.add(obj).centerObject(obj).requestRenderAll();
+  } else {
+    console.log("no plans");
+  }
+};

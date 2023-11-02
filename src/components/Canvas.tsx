@@ -1,49 +1,38 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-nocheck
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useToast, Text, Stack } from "@chakra-ui/react";
+import { Slider, SliderTrack, SliderFilledTrack, SliderThumb } from "@chakra-ui/react";
+
 import { fabric } from "fabric";
 import h337, { HeatmapConfiguration } from "heatmap.js";
-import {
-  HiArrowUp,
-  HiArrowDown,
-  HiArrowLeft,
-  HiArrowRight,
-  HiOutlineStatusOnline,
-  HiOutlineRefresh,
-  HiOutlineSave,
-  HiFolderOpen,
-  HiDownload,
-  HiTrash,
-} from "react-icons/hi";
-
-import { TbZoomReset } from "react-icons/tb";
-import { Helper } from "dxf/dist/dxf";
-
+import { HiOutlineStatusOnline, HiOutlineSave, HiFolderOpen, HiDownload, HiTrash } from "react-icons/hi";
+import PanButtons from "./PanButtons";
+import { initialData } from "../utils/samplePinData";
+// import { RangeDatepicker } from "chakra-dayzed-datepicker";
 import "./canvas.css";
-import { panCanvas, zoomCanvas, zoomCanvasToValue } from "../utils/ZoomPanHandlers";
 import { createPin } from "../utils/objectHandlers";
 import { produce } from "immer";
-
-import { Text, Icon, Slider, SliderFilledTrack, SliderThumb, SliderTrack, Stack, Tooltip } from "@chakra-ui/react";
+import ZoomSlider from "./ZoomSlider";
+import { Icon, Tooltip } from "@chakra-ui/react";
 import PinDetails from "./PinDetails";
+import { getPDFImageObject } from "../utils/pdfHandler";
+import { addDxfToCanvas } from "../utils/dxfHandler";
+import StrokeWidthSlider from "./StrokeWidthSlider";
+// import { useNavigate } from "react-router-dom";
 
 export default function Canvas({ mode }: { mode: string }) {
+  const toast = useToast();
+  const toastRef = useRef(toast);
+
   const canvasRef = useRef(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
 
   const [loaded, setLoaded] = useState(false);
 
-  const initialItems = [
-    { id: 1, name: "Sensor 1", temp: 36.5, used: false, radius: 200 },
-    { id: 2, name: "Sensor 2", temp: 29.5, used: false, radius: 200 },
-    { id: 3, name: "Sensor 3", temp: 38.5, used: false, radius: 200 },
-    { id: 4, name: "Sensor 4", temp: 25.5, used: false, radius: 200 },
-    { id: 5, name: "Sensor 5", temp: 30.8, used: false, radius: 200 },
-    { id: 6, name: "Sensor 6", temp: 21.5, used: false, radius: 200 },
-    { id: 7, name: "Sensor 7", temp: 27.5, used: false, radius: 200 },
-    { id: 8, name: "Sensor 8", temp: 25.5, used: false, radius: 200 },
-    { id: 9, name: "Sensor 9", temp: 30.8, used: false, radius: 200 },
-    { id: 10, name: "Sensor 10", temp: 21.5, used: false, radius: 200 },
-    { id: 11, name: "Sensor 11", temp: 27.5, used: false, radius: 200 },
-  ];
+  const initialItems = initialData;
+
+  // const [selectedDates, setSelectedDates] = useState<Date[]>([new Date(), new Date()]);
 
   const initFabric = (width: number, height: number) => {
     fabricRef.current = new fabric.Canvas(canvasRef.current);
@@ -51,32 +40,57 @@ export default function Canvas({ mode }: { mode: string }) {
     fabricRef.current.setHeight(height);
     fabricRef.current
       .on("drop", (e) => {
+        if (!fabricRef.current) {
+          return;
+        }
         const { x, y } = fabricRef.current.getPointer(e.e);
         const id = parseInt(e.e.dataTransfer.getData("text"));
         const currentObj = itemsRef.current.filter((e) => e.id === id)[0];
         if (currentObj.used === false) {
           // if (e.target?.name === "plan" && !fabricRef.current?.isTargetTransparent(e.target, x, y)) {
-          if (e.target?.name == "plan") {
-            createPin(x, y, currentObj.temp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
+          if (
+            e.target?.name == "plan" ||
+            // e.subTargets?.filter((e) => e.name === "plan").length === 1 ||
+            e.target?.name == "heatmap"
+          ) {
+            console.log(currentObj.data);
+            let sum = 0;
+            currentObj.data.forEach((e) => {
+              sum += parseFloat(e.t);
+            });
+            const avgTemp = parseFloat((sum / currentObj.data.length).toFixed(2));
+            createPin(x, y, avgTemp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
             removeRef.current(id);
           } else {
-            console.log("object cannot go outside floor plan");
+            // console.log("object cannot go outside floor plan");
+            toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
           }
         }
         // console.log(fabricRef.current);
       })
-      .on("object:added", () => {
+      .on("object:added", (e) => {
+        fabricRef.current?.forEachObject(function (obj) {
+          if (obj === e.target || obj.name !== "plan") return;
+          // if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
+          if (e.target?.name == "pin" && !e.target.intersectsWithObject(obj)) {
+            console.log("object cannot go outside floor plan");
+            toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
+            deleteRef.current(e.target?.id, fabricRef.current);
+          }
+          // console.log(obj, e.target?.intersectsWithObject(obj));
+        });
         calculateHeatMap();
       })
-      .on("object:moving", (e) => {
+      .on("object:moving", () => {
         calculateHeatMap();
       })
       .on("object:modified", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
           if (obj === e.target || obj.name !== "plan") return;
           // if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
-          if (e.target?.name == "pin" && !e.target.isContainedWithinObject(obj)) {
+          if (e.target?.name == "pin" && !e.target.intersectsWithObject(obj)) {
             console.log("object cannot go outside floor plan");
+            toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
             deleteRef.current(e.target?.id, fabricRef.current);
           }
           // console.log(obj, e.target?.intersectsWithObject(obj));
@@ -84,7 +98,7 @@ export default function Canvas({ mode }: { mode: string }) {
 
         calculateHeatMap();
       })
-      .on("selection:updated", (e) => {
+      .on("selection:updated", () => {
         const selectedObjects = fabricRef.current?.getActiveObjects();
         if (selectedObjects) {
           if (selectedObjects.length == 1) {
@@ -185,6 +199,7 @@ export default function Canvas({ mode }: { mode: string }) {
     heatmapRef.current = h337.create(config);
     heatmapCanvasRef.current = heatmapRef.current._renderer.canvas;
     if (heatmapCanvasRef.current) {
+      // create image out of heatmap canvas and add to fabric
       const heatmapImage = new fabric.Image(heatmapCanvasRef.current, {
         selectable: false,
         name: "heatmap",
@@ -202,6 +217,7 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   const calculateHeatMap = () => {
+    // generate data points for heatmap according to objects in fabric
     let max = -100;
     const points = fabricRef.current?._objects
       .filter((e) => e.name === "pin")
@@ -213,6 +229,7 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   const handleResize = () => {
+    // resize canvas and regenerate heatmap in case of windowResize
     if (!mainCanvasRef.current) {
       console.log("canvas not loaded");
       return;
@@ -231,8 +248,16 @@ export default function Canvas({ mode }: { mode: string }) {
     initHeatmap(mainCanvasRef.current.clientWidth, mainCanvasRef.current.clientHeight);
     window.addEventListener("resize", handleResize);
 
+    //load from localstorage and disable movements
+
     if (mode === "view") {
-      LoadFromLocalStorage(fabricRef.current);
+      const promise = LoadFromLocalStorage(fabricRef.current);
+      toast.promise(promise, {
+        position: "top",
+        success: { title: "Success!", description: "Loaded from Local Storage" },
+        error: { title: "Failed!", description: "Something wrong" },
+        loading: { title: "Loading...", description: "Please wait" },
+      });
       setTimeout(() => {
         setLoaded(false);
         const allObjects = fabricRef.current?.getObjects();
@@ -256,12 +281,19 @@ export default function Canvas({ mode }: { mode: string }) {
     };
   }, []);
 
-  const saveToLocalStorage = (canvas: fabric.Canvas | null) => {
-    if (!canvas) {
-      throw new Error("Canvas not initialized");
-    }
-    const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
-    window.localStorage.setItem("json", JSON.stringify(json));
+  const saveToLocalStorage = async (canvas: fabric.Canvas | null) => {
+    return new Promise<void>(function (resolve, reject) {
+      try {
+        if (!canvas) {
+          throw new Error("Canvas not initialized");
+        }
+        const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
+        window.localStorage.setItem("json", JSON.stringify(json));
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
   };
 
   const LoadFromLocalStorage = async (canvas: fabric.Canvas | null) => {
@@ -298,15 +330,7 @@ export default function Canvas({ mode }: { mode: string }) {
     });
   };
 
-  const readFileContent = (file: File) => {
-    const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-      reader.onload = (event) => resolve(event.target?.result);
-      reader.onerror = (error) => reject(error);
-      reader.readAsText(file);
-    });
-  };
-
+  const [fileType, setFileType] = useState("");
   const handleInput = async (e: ChangeEvent<HTMLInputElement>) => {
     try {
       if (!fabricRef.current) {
@@ -314,46 +338,29 @@ export default function Canvas({ mode }: { mode: string }) {
       }
 
       if (!e.target.files || e.target.files.length < 1) {
-        return;
+        throw new Error("Files not Uploaded");
       }
 
-      const content = await readFileContent(e.target.files[0]);
-      const helper = new Helper(content);
-      const svg = helper.toSVG();
-      // const svg = sampleSvg;
-      // console.log(svg);
-      fabric.loadSVGFromString(svg, (objects, options) => {
-        objects.forEach((object) => {
-          // object.strokeWidth = 0.5;
-          // object.fill = "rgb(255,0,0,0.1)";
-        });
-
-        if (!fabricRef.current) {
-          return;
-        }
-
-        const obj = fabric.util.groupSVGElements(objects, options);
-        obj.name = "plan";
-        obj.selectable = false;
-        obj
-          .scaleToHeight(fabricRef.current.getHeight() * (3 / 4))
-          .scaleToWidth(fabricRef.current.getWidth() * (3 / 4))
-          .set({
-            left: fabricRef.current.getWidth() / 2,
-            top: fabricRef.current.getHeight() / 2,
-          })
-          .setCoords();
-        obj.opacity = 0.7;
-        fabricRef.current?.add(obj).centerObject(obj).renderAll();
-        // obj.setCoords();
-        // obj.sendToBack();
-        if (mode === "edit") {
-          setLoaded(true);
-        }
-        // obj.perPixelTargetFind = true;
-      });
+      const fileExtension = e.target.files[0].name.split(".").slice(-1)[0];
+      if (fileExtension === "dxf") {
+        console.log("dxf");
+        setFileType("dxf");
+        await addDxfToCanvas(e.target.files[0], fabricRef.current);
+        toast({ status: "success", title: "Loaded DXF File" });
+        toast({ status: "info", title: "Increase stroke width if floor plan is barely visible" });
+      } else if (fileExtension === "pdf") {
+        console.log("pdf");
+        const tmppath = URL.createObjectURL(e.target.files[0]);
+        await getPDFImageObject(tmppath, fabricRef.current);
+        toast({ status: "success", title: "Loaded PDF File" });
+      } else {
+        throw new Error("wrong file extension!!");
+      }
+      if (mode === "edit") {
+        setLoaded(true);
+      }
     } catch (err) {
-      console.log(err);
+      toast({ status: "error", title: "An Error Occured" });
     }
   };
 
@@ -375,16 +382,31 @@ export default function Canvas({ mode }: { mode: string }) {
   }, [items]);
 
   const mainCanvasRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
   const [currentPin, setCurrentPin] = useState(null);
   const setPinRef = useRef(setCurrentPin);
+  // const navigate = useNavigate();
   return (
     <>
-      {mode === "edit" && (
-        <div className="navbar">
-          <input type="file" className="file-input" onChange={handleInput}></input>
-        </div>
-      )}
+      <div className="navbar">
+        {/* {mode === "edit" ? (
+          <Button
+            onClick={() => {
+              navigate("/view");
+            }}
+          >
+            View
+          </Button>
+        ) : (
+          <Button
+            onClick={() => {
+              navigate("/");
+            }}
+          >
+            Edit
+          </Button>
+        )} */}
+        {mode === "edit" && <input type="file" className="file-input" onChange={handleInput} />}
+      </div>
       <div className="container">
         <div className="main-canvas-container" ref={mainCanvasRef}>
           <div className="internal-canvas-container">
@@ -393,66 +415,10 @@ export default function Canvas({ mode }: { mode: string }) {
           {/* <div className="heatmap"></div> */}
         </div>
         <div className="toolbox-container">
-          <div className="zoom-buttons">
-            <Slider
-              aria-label="slider-ex-4"
-              step={parseFloat("0.1")}
-              max={parseFloat("3.0")}
-              min={parseFloat("0.2")}
-              value={zoom}
-              onChange={(e) => {
-                setZoom(e);
-                zoomCanvasToValue(fabricRef.current, zoom);
-              }}
-            >
-              <SliderTrack bg="teal.100">
-                <SliderFilledTrack bg="teal" />
-              </SliderTrack>
-              <SliderThumb boxSize={6} />
-            </Slider>
-            <Icon
-              as={TbZoomReset}
-              boxSize={6}
-              style={{ marginLeft: "10px" }}
-              onClick={() => {
-                zoomCanvas(fabricRef.current, "reset");
-                setZoom(1);
-              }}
-            />
-          </div>
-
-          <div className="pan-buttons">
-            <Icon
-              as={HiArrowLeft}
-              style={{ gridColumn: "1", gridRow: "2", cursor: "pointer" }}
-              boxSize={6}
-              onClick={() => panCanvas(fabricRef.current, "left")}
-            />
-            <Icon
-              as={HiArrowUp}
-              style={{ gridColumn: "2", gridRow: "1", cursor: "pointer" }}
-              boxSize={6}
-              onClick={() => panCanvas(fabricRef.current, "up")}
-            />
-            <Icon
-              as={HiOutlineRefresh}
-              style={{ gridColumn: "2", gridRow: "2", cursor: "pointer" }}
-              boxSize={6}
-              onClick={() => panCanvas(fabricRef.current, "reset")}
-            />
-            <Icon
-              as={HiArrowDown}
-              style={{ gridColumn: "2", gridRow: "3", cursor: "pointer" }}
-              boxSize={6}
-              onClick={() => panCanvas(fabricRef.current, "down")}
-            />
-            <Icon
-              as={HiArrowRight}
-              style={{ gridColumn: "3", gridRow: "2", cursor: "pointer" }}
-              boxSize={6}
-              onClick={() => panCanvas(fabricRef.current, "right")}
-            />
-          </div>
+          {/* <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} /> */}
+          {mode === "edit" && fileType === "dxf" ? <StrokeWidthSlider canvas={fabricRef.current} /> : null}
+          <ZoomSlider canvas={fabricRef.current} />
+          <PanButtons canvas={fabricRef.current} />
           <div className="save-buttons">
             {mode === "edit" && (
               <Icon
@@ -460,7 +426,13 @@ export default function Canvas({ mode }: { mode: string }) {
                 boxSize={6}
                 style={{ margin: "10px", cursor: "pointer" }}
                 onClick={async () => {
-                  await LoadFromLocalStorage(fabricRef.current);
+                  const promise = LoadFromLocalStorage(fabricRef.current);
+                  toast.promise(promise, {
+                    position: "top",
+                    success: { title: "Success!", description: "Loaded from Local Storage" },
+                    error: { title: "Failed!", description: "Something wrong" },
+                    loading: { title: "Loading...", description: "Please wait" },
+                  });
                 }}
               />
             )}
@@ -471,7 +443,12 @@ export default function Canvas({ mode }: { mode: string }) {
                   boxSize={6}
                   style={{ margin: "10px", cursor: "pointer" }}
                   onClick={() => {
-                    saveToLocalStorage(fabricRef.current);
+                    const promise = saveToLocalStorage(fabricRef.current);
+                    toast.promise(promise, {
+                      success: { title: "Success!", description: "Saved to Local Storage" },
+                      error: { title: "Failed!", description: "Something wrong" },
+                      loading: { title: "Loading...", description: "Please wait" },
+                    });
                   }}
                 />
                 <Icon
@@ -505,7 +482,7 @@ export default function Canvas({ mode }: { mode: string }) {
                         key={i}
                         className="item"
                       >
-                        <Tooltip label={e.name + " " + e.temp + "\xB0C"} fontSize="md">
+                        <Tooltip label={e.name} fontSize="md">
                           <span>
                             <HiOutlineStatusOnline size={30} />
                           </span>
@@ -537,6 +514,7 @@ export default function Canvas({ mode }: { mode: string }) {
             <div>Please load a floor plan</div>
           )}
           {currentPin && <PinDetails currentPinId={currentPin} items={items} />}
+          {/* {currentPin && <PinDetails currentPinId={currentPin} items={items} dateRange={selectedDates} />} */}
         </div>
       </div>
     </>

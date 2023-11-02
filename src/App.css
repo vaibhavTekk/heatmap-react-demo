@@ -66,6 +66,16 @@ h1 {
   margin-bottom: 12px;
 }
 
+.stroke-width {
+  width: 100%;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
 .pan-buttons {
   display: grid;
   grid-template-columns: repeat(3, 50px);
