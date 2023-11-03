@@ -12,7 +12,7 @@ export default function StrokeWidthSlider({ canvas }: { canvas: fabric.Canvas | 
 
   return (
     <div className="stroke-width">
-      <Text>Stroke Width</Text>
+      <Text>Stroke Width:</Text>
       <Slider
         aria-label="slider-ex-4"
         step={parseFloat("0.01")}
@@ -26,7 +26,7 @@ export default function StrokeWidthSlider({ canvas }: { canvas: fabric.Canvas | 
         <SliderTrack bg="teal.100">
           <SliderFilledTrack bg="teal" />
         </SliderTrack>
-        <SliderThumb boxSize={6} />
+        <SliderThumb boxSize={4} />
       </Slider>
     </div>
   );

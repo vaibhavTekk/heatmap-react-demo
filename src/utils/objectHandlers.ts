@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+//@ts-nocheck
 import { fabric } from "fabric";
 import iconUrl from "../assets/icon.png";
 
@@ -42,9 +45,10 @@ export const createPin = (
         left: x - 25,
         fontFamily: "Poppins",
         fontSize: 18,
+        name: "tempLabel",
       });
       const pin = new fabric.Group([op, label, tempLabel], { hasControls: false });
-      pin.setOptions({ name: "pin", label: name, temp: temp, id: id, radius: radius });
+      pin.setOptions({ name: "pin", label: name, temp: isNaN(temp) ? 0 : temp, id: id, radius: radius });
 
       canvas.add(pin);
     },
@@ -110,6 +114,22 @@ export const createPin = (
 //   // console.log(rect);
 //   // return rect;
 // };
+
+export const updateTemp = (canvas: fabric.Canvas | null, newTemp: number, id: number) => {
+  if (!canvas) {
+    return;
+  }
+
+  const pins = canvas.getObjects().filter((e) => e.name === "pin" && e.id == id);
+  if (pins.length > 0) {
+    const pin = pins[0];
+    const label = pin._objects.filter((e: any) => e.name === "tempLabel")[0];
+    label.set("text", (isNaN(newTemp) ? 0 : newTemp).toString() + "\xB0C");
+    pin.set("temp", isNaN(newTemp) ? 0 : newTemp);
+    canvas.renderAll();
+    // canvas.remove(pin);
+  }
+};
 
 export const changeStrokeWidth = (stroke: number, canvas: fabric.Canvas | null) => {
   if (!canvas) {

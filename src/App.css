@@ -58,22 +58,32 @@ h1 {
 
 .zoom-buttons {
   width: 100%;
-  padding: 15px;
+  padding: 8px;
   display: flex;
   flex-direction: row;
   justify-content: center;
-  margin-top: 12px;
-  margin-bottom: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.date-picker-container {
+  width: 100%;
+  padding: 6px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 .stroke-width {
   width: 100%;
-  padding: 15px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-top: 12px;
-  margin-bottom: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .pan-buttons {
@@ -112,7 +122,7 @@ ul {
   grid-template-columns: repeat(3, 1fr);
   list-style: none;
   width: 90%;
-  height: 40%;
+  height: 20%;
   overflow-y: scroll;
   margin-top: 8px;
   padding: 12px;

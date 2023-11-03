@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 //@ts-nocheck
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { useToast, Text, Stack } from "@chakra-ui/react";
-import { Slider, SliderTrack, SliderFilledTrack, SliderThumb } from "@chakra-ui/react";
-
+import { useToast } from "@chakra-ui/react";
+import { RangeDatepicker } from "chakra-dayzed-datepicker";
+import { getAvg } from "../utils/tempHandler";
 import { fabric } from "fabric";
 import h337, { HeatmapConfiguration } from "heatmap.js";
 import { HiOutlineStatusOnline, HiOutlineSave, HiFolderOpen, HiDownload, HiTrash } from "react-icons/hi";
@@ -11,7 +12,7 @@ import PanButtons from "./PanButtons";
 import { initialData } from "../utils/samplePinData";
 // import { RangeDatepicker } from "chakra-dayzed-datepicker";
 import "./canvas.css";
-import { createPin } from "../utils/objectHandlers";
+import { createPin, updateTemp } from "../utils/objectHandlers";
 import { produce } from "immer";
 import ZoomSlider from "./ZoomSlider";
 import { Icon, Tooltip } from "@chakra-ui/react";
@@ -32,6 +33,8 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const initialItems = initialData;
 
+  const [selectedDates, setSelectedDates] = useState<Date[]>([new Date(), new Date()]);
+  const dateRef = useRef(selectedDates);
   // const [selectedDates, setSelectedDates] = useState<Date[]>([new Date(), new Date()]);
 
   const initFabric = (width: number, height: number) => {
@@ -47,37 +50,33 @@ export default function Canvas({ mode }: { mode: string }) {
         const id = parseInt(e.e.dataTransfer.getData("text"));
         const currentObj = itemsRef.current.filter((e) => e.id === id)[0];
         if (currentObj.used === false) {
-          // if (e.target?.name === "plan" && !fabricRef.current?.isTargetTransparent(e.target, x, y)) {
-          if (
-            e.target?.name == "plan" ||
-            // e.subTargets?.filter((e) => e.name === "plan").length === 1 ||
-            e.target?.name == "heatmap"
-          ) {
-            console.log(currentObj.data);
-            let sum = 0;
-            currentObj.data.forEach((e) => {
-              sum += parseFloat(e.t);
+          //check if it is dropped on either plan or heatmap, cannot be dropped outside
+          if (e.target?.name == "plan" || e.target?.name == "heatmap") {
+            // filter date array to date range(using ref)
+            const dataArray = currentObj.data.filter((e: any) => {
+              const date = new Date(e.ts);
+              return date >= dateRef.current[0] && date <= dateRef.current[1];
             });
-            const avgTemp = parseFloat((sum / currentObj.data.length).toFixed(2));
+            const avgTemp = getAvg(dataArray);
+            //create pin
             createPin(x, y, avgTemp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
+            // mark pin as used inside items state
             removeRef.current(id);
           } else {
             // console.log("object cannot go outside floor plan");
             toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
           }
         }
-        // console.log(fabricRef.current);
       })
       .on("object:added", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
           if (obj === e.target || obj.name !== "plan") return;
-          // if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
+          // check if object is outside the floor plan and if yes destroy the object
           if (e.target?.name == "pin" && !e.target.intersectsWithObject(obj)) {
             console.log("object cannot go outside floor plan");
             toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
             deleteRef.current(e.target?.id, fabricRef.current);
           }
-          // console.log(obj, e.target?.intersectsWithObject(obj));
         });
         calculateHeatMap();
       })
@@ -87,18 +86,19 @@ export default function Canvas({ mode }: { mode: string }) {
       .on("object:modified", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
           if (obj === e.target || obj.name !== "plan") return;
-          // if (e.target?.name == "pin" && fabricRef.current?.isTargetTransparent(obj, e.target?.left, e.target?.top)) {
+          // check if object is outside the floor plan and if yes destroy the object
           if (e.target?.name == "pin" && !e.target.intersectsWithObject(obj)) {
             console.log("object cannot go outside floor plan");
             toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
             deleteRef.current(e.target?.id, fabricRef.current);
           }
-          // console.log(obj, e.target?.intersectsWithObject(obj));
         });
 
         calculateHeatMap();
       })
       .on("selection:updated", () => {
+        // if a selection is made and theres more than one selected object, reject that selection
+        // to prevent user from selecting more than one object at a time
         const selectedObjects = fabricRef.current?.getActiveObjects();
         if (selectedObjects) {
           if (selectedObjects.length == 1) {
@@ -114,6 +114,7 @@ export default function Canvas({ mode }: { mode: string }) {
           return;
         }
         if (e.selected.length == 1) {
+          // set pin ref to current selected id, this is referenced again to show appropriate pin details
           setPinRef.current(e.selected[0].id);
         } else if (e.selected.length > 1) {
           // prevents selection of more than one object
@@ -121,6 +122,7 @@ export default function Canvas({ mode }: { mode: string }) {
         }
       })
       .on("selection:cleared", () => {
+        //clear selection
         setPinRef.current(null);
       })
       .on("object:removed", () => {
@@ -129,6 +131,7 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   const removeFromList = (id: number) => {
+    // using immer to handle immutability for state
     setItems(
       produce((draft) => {
         draft.filter((e) => e.id === id)[0].used = true;
@@ -219,13 +222,15 @@ export default function Canvas({ mode }: { mode: string }) {
   const calculateHeatMap = () => {
     // generate data points for heatmap according to objects in fabric
     let max = -100;
-    const points = fabricRef.current?._objects
-      .filter((e) => e.name === "pin")
+    const points = fabricRef.current
+      ?.getObjects()
+      .filter((e) => e.name === "pin" && e.temp !== 0)
       .map((e) => {
         max = Math.max(e.temp, max);
         return { x: e.left + 20, y: e.top + 20, value: e.temp * e.opacity, radius: e.radius };
       });
     heatmapRef.current.setData({ max, data: points });
+    fabricRef.current?.renderAll();
   };
 
   const handleResize = () => {
@@ -270,7 +275,7 @@ export default function Canvas({ mode }: { mode: string }) {
           e.lockScalingY = true;
           e.lockSkewingX = true;
           e.lockSkewingY = true;
-          e.selectable = false;
+          // e.selectable = false;
           // console.log("after edit", e);
         });
       }, 1000);
@@ -281,12 +286,14 @@ export default function Canvas({ mode }: { mode: string }) {
     };
   }, []);
 
+  // serialise to json and save to localStorage
   const saveToLocalStorage = async (canvas: fabric.Canvas | null) => {
     return new Promise<void>(function (resolve, reject) {
       try {
         if (!canvas) {
           throw new Error("Canvas not initialized");
         }
+        // specify object properties to include in json serialisation
         const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
         window.localStorage.setItem("json", JSON.stringify(json));
         resolve();
@@ -313,6 +320,7 @@ export default function Canvas({ mode }: { mode: string }) {
 
           setItems(initialItems);
           initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
+          // update the items state according to the imported json
           setTimeout(() => {
             const objects = canvas.getObjects();
             objects
@@ -377,9 +385,30 @@ export default function Canvas({ mode }: { mode: string }) {
   const [items, setItems] = useState<any[]>(initialItems);
   const itemsRef = useRef(items);
 
+  // keep the items and date refs updated when the state changes
   useEffect(() => {
     itemsRef.current = items;
-  }, [items]);
+    dateRef.current = selectedDates;
+  }, [items, selectedDates]);
+
+  // change the pin details and heatmap based on the date range
+  useEffect(() => {
+    items
+      .filter((e) => e.used === true)
+      .forEach((e) => {
+        const dataArray = e.data.filter((e: any) => {
+          const date = new Date(e.ts);
+          return date >= selectedDates[0] && date <= selectedDates[1];
+        });
+        const newTemp = getAvg(dataArray);
+        updateTemp(fabricRef.current, newTemp, e.id);
+      });
+    calculateHeatMap();
+    // setTimeout(() => {
+    //   calculateHeatMap();
+    // }, 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDates]);
 
   const mainCanvasRef = useRef<HTMLDivElement>(null);
   const [currentPin, setCurrentPin] = useState(null);
@@ -419,6 +448,9 @@ export default function Canvas({ mode }: { mode: string }) {
           {mode === "edit" && fileType === "dxf" ? <StrokeWidthSlider canvas={fabricRef.current} /> : null}
           <ZoomSlider canvas={fabricRef.current} />
           <PanButtons canvas={fabricRef.current} />
+          <div className="date-picker-container">
+            <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} />
+          </div>
           <div className="save-buttons">
             {mode === "edit" && (
               <Icon
@@ -477,6 +509,7 @@ export default function Canvas({ mode }: { mode: string }) {
                       <li
                         draggable={!e.used}
                         onDragStart={(ev) => {
+                          // attach id of the current item to the drag event
                           ev.dataTransfer.setData("text/plain", e.id);
                         }}
                         key={i}
@@ -499,7 +532,7 @@ export default function Canvas({ mode }: { mode: string }) {
                         style={{ backgroundColor: "#cbd5e1" }}
                         className="item"
                       >
-                        <Tooltip label={e.name + " " + e.temp + "\xB0C"} fontSize="md">
+                        <Tooltip label={e.name} fontSize="md">
                           <span>
                             <HiTrash size={30} />
                           </span>
@@ -510,10 +543,10 @@ export default function Canvas({ mode }: { mode: string }) {
                 })}
               </ul>
             </>
-          ) : (
+          ) : mode === "edit" ? (
             <div>Please load a floor plan</div>
-          )}
-          {currentPin && <PinDetails currentPinId={currentPin} items={items} />}
+          ) : null}
+          {currentPin && <PinDetails currentPinId={currentPin} items={items} dateRange={selectedDates} />}
           {/* {currentPin && <PinDetails currentPinId={currentPin} items={items} dateRange={selectedDates} />} */}
         </div>
       </div>

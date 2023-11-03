@@ -75,8 +75,8 @@ export const panCanvas = (canvas: fabric.Canvas | null, direction: string) => {
     // throw new Error("Canvas is null");
     return;
   }
-
   const vpt = [...canvas.viewportTransform];
+  console.log(vpt);
   // console.log(vpt);
   const currentYValue = vpt[5];
   const currentXValue = vpt[4];
