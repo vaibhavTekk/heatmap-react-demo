@@ -27,7 +27,7 @@ export const getPDFImageObject = async (tempFileURL: string, fabricCanvas: fabri
     const renderTask = page.render({ ...renderContext });
     renderTask.promise.then(() => {
       const image = new fabric.Image(canvas, {
-        angle: 90,
+        // angle: 90,
         selectable: false,
       }).scaleToHeight(fabricCanvas.getHeight());
       image.name = "plan";

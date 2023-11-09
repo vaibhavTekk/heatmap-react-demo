@@ -3,11 +3,15 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { ChakraProvider } from "@chakra-ui/react";
+import { Provider } from "react-redux";
+import { store } from "./services/store.ts";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
+  // <React.StrictMode>
+  <Provider store={store}>
     <ChakraProvider toastOptions={{ defaultOptions: { position: "top" } }}>
       <App />
     </ChakraProvider>
-  </React.StrictMode>
+  </Provider>
+  // </React.StrictMode>
 );

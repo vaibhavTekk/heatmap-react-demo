@@ -9,7 +9,8 @@ import { fabric } from "fabric";
 import h337, { HeatmapConfiguration } from "heatmap.js";
 import { HiOutlineStatusOnline, HiOutlineSave, HiFolderOpen, HiDownload, HiTrash } from "react-icons/hi";
 import PanButtons from "./PanButtons";
-import { initialData } from "../utils/samplePinData";
+// import { initialData } from "../utils/samplePinData";
+import RadiusSlider from "../components/RadiusSlider";
 // import { RangeDatepicker } from "chakra-dayzed-datepicker";
 import "./canvas.css";
 import { createPin, updateTemp } from "../utils/objectHandlers";
@@ -20,6 +21,9 @@ import PinDetails from "./PinDetails";
 import { getPDFImageObject } from "../utils/pdfHandler";
 import { addDxfToCanvas } from "../utils/dxfHandler";
 import StrokeWidthSlider from "./StrokeWidthSlider";
+import { format } from "date-fns";
+import { calculateHeatMap } from "../utils/heatmapHandler";
+import { useGetSensorsQuery, useUpdateSensorsMutation } from "../services/api";
 // import { useNavigate } from "react-router-dom";
 
 export default function Canvas({ mode }: { mode: string }) {
@@ -31,14 +35,32 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const [loaded, setLoaded] = useState(false);
 
-  const initialItems = initialData;
+  const initialItems = [];
 
-  const [selectedDates, setSelectedDates] = useState<Date[]>([new Date(), new Date()]);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([new Date("2023-10-10"), new Date("2023-11-09")]);
   const dateRef = useRef(selectedDates);
+
+  const [radius, setRadius] = useState<number>(100);
+  const radiusRef = useRef(radius);
+
+  const {
+    data,
+    isLoading: loading,
+    error,
+  } = useGetSensorsQuery({
+    start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
+    end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
+  });
+  const [updateSensors, { isLoading: isUpdating }] = useUpdateSensorsMutation();
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   // const [selectedDates, setSelectedDates] = useState<Date[]>([new Date(), new Date()]);
 
   const initFabric = (width: number, height: number) => {
-    fabricRef.current = new fabric.Canvas(canvasRef.current);
+    fabricRef.current = new fabric.Canvas(canvasRef.current, { preserveObjectStacking: true });
     fabricRef.current.setWidth(width);
     fabricRef.current.setHeight(height);
     fabricRef.current
@@ -47,16 +69,19 @@ export default function Canvas({ mode }: { mode: string }) {
           return;
         }
         const { x, y } = fabricRef.current.getPointer(e.e);
-        const id = parseInt(e.e.dataTransfer.getData("text"));
+        const id = e.e.dataTransfer.getData("text");
         const currentObj = itemsRef.current.filter((e) => e.id === id)[0];
         if (currentObj.used === false) {
           //check if it is dropped on either plan or heatmap, cannot be dropped outside
           if (e.target?.name == "plan" || e.target?.name == "heatmap") {
             // filter date array to date range(using ref)
-            const dataArray = currentObj.data.filter((e: any) => {
-              const date = new Date(e.ts);
-              return date >= dateRef.current[0] && date <= dateRef.current[1];
-            });
+            console.log(dataRef.current.data);
+            const dataArray = dataRef.current.data[currentObj.name];
+            // .filter((e: any) => {
+            //   const date = new Date(e.sensor_epoch_ts);
+            //   // return date >= dateRef.current[0] && date <= dateRef.current[1];
+            //   return true;
+            // });
             const avgTemp = getAvg(dataArray);
             //create pin
             createPin(x, y, avgTemp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
@@ -78,10 +103,10 @@ export default function Canvas({ mode }: { mode: string }) {
             deleteRef.current(e.target?.id, fabricRef.current);
           }
         });
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:moving", () => {
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:modified", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
@@ -94,7 +119,7 @@ export default function Canvas({ mode }: { mode: string }) {
           }
         });
 
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("selection:updated", () => {
         // if a selection is made and theres more than one selected object, reject that selection
@@ -107,7 +132,7 @@ export default function Canvas({ mode }: { mode: string }) {
             fabricRef.current?.discardActiveObject();
           }
         }
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("selection:created", (e) => {
         if (!e.selected) {
@@ -126,7 +151,34 @@ export default function Canvas({ mode }: { mode: string }) {
         setPinRef.current(null);
       })
       .on("object:removed", () => {
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+      })
+      .on("mouse:down", function (opt) {
+        const evt = opt.e;
+        if (evt.altKey === true) {
+          fabricRef.current.isDragging = true;
+          fabricRef.current.selection = false;
+          fabricRef.current.lastPosX = evt.clientX;
+          fabricRef.current.lastPosY = evt.clientY;
+        }
+      })
+      .on("mouse:move", function (opt) {
+        if (fabricRef.current.isDragging) {
+          const e = opt.e;
+          const vpt = fabricRef.current.viewportTransform;
+          vpt[4] += e.clientX - fabricRef.current.lastPosX;
+          vpt[5] += e.clientY - fabricRef.current.lastPosY;
+          fabricRef.current.requestRenderAll();
+          fabricRef.current.lastPosX = e.clientX;
+          fabricRef.current.lastPosY = e.clientY;
+        }
+      })
+      .on("mouse:up", function (opt) {
+        // on mouse up we want to recalculate new interaction
+        // for all objects, so we call setViewportTransform
+        fabricRef.current.setViewportTransform(fabricRef.current.viewportTransform);
+        fabricRef.current.isDragging = false;
+        fabricRef.current.selection = true;
       });
   };
 
@@ -140,7 +192,7 @@ export default function Canvas({ mode }: { mode: string }) {
   };
   const removeRef = useRef(removeFromList);
 
-  const handleDelete = (id: number, canvas: fabric.Canvas | null) => {
+  const handleDelete = (id: string, canvas: fabric.Canvas | null) => {
     console.log("Object Deleted");
     if (!canvas) {
       throw new Error("Canvas is null");
@@ -156,7 +208,7 @@ export default function Canvas({ mode }: { mode: string }) {
       onChange: (opValue) => {
         deleteObject.opacity = opValue;
         canvas.renderAll();
-        calculateHeatMap();
+        calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
       },
       onComplete: () => {
         canvas.remove(deleteObject);
@@ -212,25 +264,11 @@ export default function Canvas({ mode }: { mode: string }) {
       fabricRef.current?.add(heatmapImage);
       heatmapImage.sendToBack();
     }
-    calculateHeatMap();
+    calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
   };
 
   const disposeFabric = () => {
     fabricRef.current?.dispose();
-  };
-
-  const calculateHeatMap = () => {
-    // generate data points for heatmap according to objects in fabric
-    let max = -100;
-    const points = fabricRef.current
-      ?.getObjects()
-      .filter((e) => e.name === "pin" && e.temp !== 0)
-      .map((e) => {
-        max = Math.max(e.temp, max);
-        return { x: e.left + 20, y: e.top + 20, value: e.temp * e.opacity, radius: e.radius };
-      });
-    heatmapRef.current.setData({ max, data: points });
-    fabricRef.current?.renderAll();
   };
 
   const handleResize = () => {
@@ -245,10 +283,42 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   useEffect(() => {
+    if (error) {
+      toast({ status: "error", title: "Error fetching Sensor data", description: error.message });
+      console.log(error);
+    }
+    // else if (loading || isUpdating) {
+    //   toast({ status: "loading", title: "Sensor Data Loading" });
+    // }
+
+    if (data && data.data) {
+      toast({ status: "success", title: "Sensor Data Loaded!" });
+      console.log(data);
+      const itemsArray = Object.entries(data.data).map((e, i) => {
+        return {
+          id: e[0],
+          name: e[0],
+          used: items.length > 0 ? items[i].used : false,
+        };
+      });
+      setItems(itemsArray);
+      calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
+    }
+  }, [data, loading, error, toast, isUpdating]);
+
+  useEffect(() => {
+    radiusRef.current = radius;
+
+    if (!fabricRef.current || !heatmapRef.current || !loaded) return;
+    calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
+  }, [radius]);
+
+  useEffect(() => {
     if (!mainCanvasRef.current) {
       console.log("canvas not loaded");
       return;
     }
+
     initFabric(mainCanvasRef.current.clientWidth, mainCanvasRef.current.clientHeight);
     initHeatmap(mainCanvasRef.current.clientWidth, mainCanvasRef.current.clientHeight);
     window.addEventListener("resize", handleResize);
@@ -265,8 +335,8 @@ export default function Canvas({ mode }: { mode: string }) {
       });
       setTimeout(() => {
         setLoaded(false);
-        const allObjects = fabricRef.current?.getObjects();
-        allObjects?.forEach((e) => {
+        const allObjects = fabricRef.current.getObjects();
+        allObjects.forEach((e) => {
           // console.log("before edit", e);
           e.lockMovementX = true;
           e.lockMovementY = true;
@@ -318,11 +388,14 @@ export default function Canvas({ mode }: { mode: string }) {
             return;
           }
 
-          setItems(initialItems);
           initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
           // update the items state according to the imported json
           setTimeout(() => {
             const objects = canvas.getObjects();
+            const planObject = objects.filter((e) => e.name === "plan")[0];
+            if (planObject) {
+              planObject.sendToBack();
+            }
             objects
               .filter((e) => e.name == "pin")
               .forEach((e) => {
@@ -331,6 +404,7 @@ export default function Canvas({ mode }: { mode: string }) {
             setLoaded(true);
             resolve();
           }, 1000);
+          calculateHeatMap(canvas, heatmapRef.current, radius);
         });
       } catch (error) {
         reject(error);
@@ -382,7 +456,7 @@ export default function Canvas({ mode }: { mode: string }) {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [items, setItems] = useState<any[]>(initialItems);
+  const [items, setItems] = useState<any[]>([]);
   const itemsRef = useRef(items);
 
   // keep the items and date refs updated when the state changes
@@ -393,19 +467,30 @@ export default function Canvas({ mode }: { mode: string }) {
 
   // change the pin details and heatmap based on the date range
   useEffect(() => {
+    console.log(
+      selectedDates
+      // format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
+      // format(selectedDates[1], "yyyy-MM-dd hh:mm:ss")
+    );
+    if (!selectedDates[0] || !selectedDates[1]) {
+      console.log("none");
+      return;
+    }
+    console.log(selectedDates[0] + ": " + selectedDates[1]);
+    // updateSensors({
+    //   start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
+    //   end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
+    // });
     items
       .filter((e) => e.used === true)
       .forEach((e) => {
-        const dataArray = e.data.filter((e: any) => {
-          const date = new Date(e.ts);
-          return date >= selectedDates[0] && date <= selectedDates[1];
-        });
+        const dataArray = dataRef.current[e.name];
         const newTemp = getAvg(dataArray);
         updateTemp(fabricRef.current, newTemp, e.id);
       });
-    calculateHeatMap();
+    calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
     // setTimeout(() => {
-    //   calculateHeatMap();
+    //   calculateHeatMap(fabricRef.current,heatmapRef.current,radius);
     // }, 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDates]);
@@ -447,6 +532,14 @@ export default function Canvas({ mode }: { mode: string }) {
           {/* <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} /> */}
           {mode === "edit" && fileType === "dxf" ? <StrokeWidthSlider canvas={fabricRef.current} /> : null}
           <ZoomSlider canvas={fabricRef.current} />
+          {loaded && (
+            <RadiusSlider
+              canvas={fabricRef.current}
+              heatmap={heatmapRef.current}
+              radius={radius}
+              setRadius={setRadius}
+            />
+          )}
           <PanButtons canvas={fabricRef.current} />
           <div className="date-picker-container">
             <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} />
@@ -526,7 +619,7 @@ export default function Canvas({ mode }: { mode: string }) {
                     return (
                       <li
                         onClick={() => {
-                          handleDelete(parseInt(e.id), fabricRef.current);
+                          handleDelete(e.id, fabricRef.current);
                         }}
                         key={i}
                         style={{ backgroundColor: "#cbd5e1" }}
@@ -546,8 +639,7 @@ export default function Canvas({ mode }: { mode: string }) {
           ) : mode === "edit" ? (
             <div>Please load a floor plan</div>
           ) : null}
-          {currentPin && <PinDetails currentPinId={currentPin} items={items} dateRange={selectedDates} />}
-          {/* {currentPin && <PinDetails currentPinId={currentPin} items={items} dateRange={selectedDates} />} */}
+          {currentPin && <PinDetails currentPinId={currentPin} data={data} items={items} dateRange={selectedDates} />}
         </div>
       </div>
     </>

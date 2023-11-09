@@ -8,7 +8,7 @@ export const createPin = (
   x: number,
   y: number,
   temp: number,
-  id: number,
+  id: string,
   name: string,
   radius: number,
   canvas: fabric.Canvas | null
@@ -160,4 +160,23 @@ export const changeStrokeWidth = (stroke: number, canvas: fabric.Canvas | null) 
   } else {
     console.log("no plans");
   }
+};
+
+export const deactivateObjects = (canvas: fabric.Canvas | null) => {
+  if (!canvas) {
+    return;
+  }
+  const allObjects = canvas.getObjects();
+  allObjects.forEach((e) => {
+    // console.log("before edit", e);
+    e.lockMovementX = true;
+    e.lockMovementY = true;
+    e.lockRotation = true;
+    e.lockScalingX = true;
+    e.lockScalingY = true;
+    e.lockSkewingX = true;
+    e.lockSkewingY = true;
+    // e.selectable = false;
+    // console.log("after edit", e);
+  });
 };
