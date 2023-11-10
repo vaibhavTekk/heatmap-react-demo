@@ -24,7 +24,7 @@ export default function PinDetails({
   // });
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
   const avgTemp = getAvg(dataArray);
-  console.log(currentPinId);
+  // console.log(currentPinId);
   return (
     <Stack spacing={1} style={{ width: "70%", marginTop: "12px" }}>
       <Text fontSize="2xl" as="b">

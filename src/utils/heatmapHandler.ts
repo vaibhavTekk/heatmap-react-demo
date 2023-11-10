@@ -6,14 +6,17 @@ export const calculateHeatMap = (canvas: fabric.Canvas | null, heatmap: any, rad
     return;
   }
   // generate data points for heatmap according to objects in fabric
+  // console.log("heatmap changed");
   let max = -100;
-  const points = canvas
-    .getObjects()
-    .filter((e) => e.name === "pin" && e.temp !== 0)
-    .map((e) => {
+  // console.log(canvas.getObjects());
+  const canvasObjects = canvas.getObjects().filter((e) => e.name === "pin" && e.temp !== 0);
+  if (canvasObjects.length > 0) {
+    const points = canvasObjects.map((e) => {
+      console.log(e);
       max = Math.max(e.temp, max);
       return { x: e.left + 20, y: e.top + 20, value: e.temp * e.opacity, radius: radius };
     });
-  heatmap.setData({ max, data: points });
+    heatmap.setData({ max, data: points });
+  }
   canvas.renderAll();
 };

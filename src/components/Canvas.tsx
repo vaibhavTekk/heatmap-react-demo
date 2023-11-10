@@ -35,6 +35,8 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const [loaded, setLoaded] = useState(false);
 
+  const calculateHeatMapRef = useRef(calculateHeatMap);
+
   const initialItems = [];
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date("2023-10-10"), new Date("2023-11-09")]);
@@ -103,7 +105,7 @@ export default function Canvas({ mode }: { mode: string }) {
             deleteRef.current(e.target?.id, fabricRef.current);
           }
         });
-        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:moving", () => {
         calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
@@ -119,7 +121,7 @@ export default function Canvas({ mode }: { mode: string }) {
           }
         });
 
-        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("selection:updated", () => {
         // if a selection is made and theres more than one selected object, reject that selection
@@ -132,7 +134,7 @@ export default function Canvas({ mode }: { mode: string }) {
             fabricRef.current?.discardActiveObject();
           }
         }
-        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("selection:created", (e) => {
         if (!e.selected) {
@@ -151,7 +153,7 @@ export default function Canvas({ mode }: { mode: string }) {
         setPinRef.current(null);
       })
       .on("object:removed", () => {
-        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("mouse:down", function (opt) {
         const evt = opt.e;
@@ -179,6 +181,16 @@ export default function Canvas({ mode }: { mode: string }) {
         fabricRef.current.setViewportTransform(fabricRef.current.viewportTransform);
         fabricRef.current.isDragging = false;
         fabricRef.current.selection = true;
+      })
+      .on("mouse:wheel", function (opt) {
+        const delta = opt.e.deltaY;
+        let zoom = fabricRef.current.getZoom();
+        zoom *= 0.999 ** delta;
+        if (zoom > 5) zoom = 5;
+        if (zoom < 0.99) zoom = 0.99;
+        fabricRef.current.setZoom(zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
       });
   };
 
@@ -264,6 +276,7 @@ export default function Canvas({ mode }: { mode: string }) {
       fabricRef.current?.add(heatmapImage);
       heatmapImage.sendToBack();
     }
+    console.log(heatmapRef.current);
     calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
   };
 

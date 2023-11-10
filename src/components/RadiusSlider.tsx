@@ -4,15 +4,11 @@
 import { Slider, SliderFilledTrack, SliderThumb, SliderTrack, Text } from "@chakra-ui/react";
 
 export default function StrokeWidthSlider({
-  canvas,
-  heatmap,
   radius,
   setRadius,
 }: {
-  canvas: fabric.Canvas | null;
-  heatmap: any;
   radius: number;
-  setRadius: any;
+  setRadius: SetStateAction<number>;
 }) {
   return (
     <div className="stroke-width">
