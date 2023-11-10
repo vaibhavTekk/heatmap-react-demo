@@ -12,7 +12,6 @@ export const calculateHeatMap = (canvas: fabric.Canvas | null, heatmap: any, rad
   const canvasObjects = canvas.getObjects().filter((e) => e.name === "pin" && e.temp !== 0);
   if (canvasObjects.length > 0) {
     const points = canvasObjects.map((e) => {
-      console.log(e);
       max = Math.max(e.temp, max);
       return { x: e.left + 20, y: e.top + 20, value: e.temp * e.opacity, radius: radius };
     });

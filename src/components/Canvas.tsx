@@ -94,6 +94,7 @@ export default function Canvas({ mode }: { mode: string }) {
             toastRef.current({ status: "warning", title: "Cannot place object outside floor plan!" });
           }
         }
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:added", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
