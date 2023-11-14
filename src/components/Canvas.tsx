@@ -23,7 +23,7 @@ import { addDxfToCanvas } from "../utils/dxfHandler";
 import StrokeWidthSlider from "./StrokeWidthSlider";
 import { format } from "date-fns";
 import { calculateHeatMap } from "../utils/heatmapHandler";
-import { useGetSensorsQuery, useUpdateSensorsMutation } from "../services/api";
+import { useGetSensorsQuery } from "../services/api";
 // import { useNavigate } from "react-router-dom";
 
 export default function Canvas({ mode }: { mode: string }) {
@@ -52,11 +52,15 @@ export default function Canvas({ mode }: { mode: string }) {
     error,
   } = useGetSensorsQuery(
     {
-      start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
-      end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
+      start: selectedDates[0] ? format(selectedDates[0], "yyyy-MM-dd hh:mm:ss") : null,
+      end: selectedDates[1] ? format(selectedDates[1], "yyyy-MM-dd hh:mm:ss") : null,
     },
-    { skip: !format(selectedDates[0], "yyyy-MM-dd hh:mm:ss") || !format(selectedDates[1], "yyyy-MM-dd hh:mm:ss") }
+    { skip: selectedDates.length < 2 }
   );
+
+  useEffect(() => {
+    console.log("SelectedDates:", selectedDates);
+  }, [selectedDates]);
 
   const dataRef = useRef(data);
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function Canvas({ mode }: { mode: string }) {
         calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:moving", () => {
-        calculateHeatMap(fabricRef.current, heatmapRef.current, radiusRef.current);
+        calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:modified", (e) => {
         fabricRef.current?.forEachObject(function (obj) {
@@ -512,7 +516,7 @@ export default function Canvas({ mode }: { mode: string }) {
     //   calculateHeatMap(fabricRef.current,heatmapRef.current,radius);
     // }, 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDates]);
+  }, [data]);
 
   const mainCanvasRef = useRef<HTMLDivElement>(null);
   const [currentPin, setCurrentPin] = useState(null);
@@ -561,14 +565,7 @@ export default function Canvas({ mode }: { mode: string }) {
           )}
           <PanButtons canvas={fabricRef.current} />
           <div className="date-picker-container">
-            <RangeDatepicker
-              selectedDates={selectedDates}
-              onDateChange={(e) => {
-                console.log("date change:", e);
-                setSelectedDates(e);
-                console.log(selectedDates);
-              }}
-            />
+            <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} />
           </div>
           <div className="save-buttons">
             {mode === "edit" && (
