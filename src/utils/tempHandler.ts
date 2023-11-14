@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const getAvg = (dataArray: any[]) => {
+  if (!dataArray) {
+    return 0;
+  }
   let sum = 0;
   dataArray.forEach((e: any) => {
     sum += parseFloat(e.temp);

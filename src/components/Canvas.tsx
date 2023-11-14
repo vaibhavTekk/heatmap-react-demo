@@ -37,7 +37,8 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const calculateHeatMapRef = useRef(calculateHeatMap);
 
-  const initialItems = [];
+  // const initialItems = [];
+  const initialDates = [new Date("2023-10-10"), new Date("2023-11-09")];
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date("2023-10-10"), new Date("2023-11-09")]);
   const dateRef = useRef(selectedDates);
@@ -49,11 +50,14 @@ export default function Canvas({ mode }: { mode: string }) {
     data,
     isLoading: loading,
     error,
-  } = useGetSensorsQuery({
-    start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
-    end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
-  });
-  const [updateSensors, { isLoading: isUpdating }] = useUpdateSensorsMutation();
+  } = useGetSensorsQuery(
+    {
+      start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
+      end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
+    },
+    { skip: !format(selectedDates[0], "yyyy-MM-dd hh:mm:ss") || !format(selectedDates[1], "yyyy-MM-dd hh:mm:ss") }
+  );
+
   const dataRef = useRef(data);
   useEffect(() => {
     dataRef.current = data;
@@ -318,7 +322,7 @@ export default function Canvas({ mode }: { mode: string }) {
       setItems(itemsArray);
       calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
     }
-  }, [data, loading, error, toast, isUpdating]);
+  }, [data, loading, error, toast]);
 
   useEffect(() => {
     radiusRef.current = radius;
@@ -481,16 +485,16 @@ export default function Canvas({ mode }: { mode: string }) {
 
   // change the pin details and heatmap based on the date range
   useEffect(() => {
-    console.log(
-      selectedDates
-      // format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
-      // format(selectedDates[1], "yyyy-MM-dd hh:mm:ss")
-    );
-    if (!selectedDates[0] || !selectedDates[1]) {
-      console.log("none");
-      return;
-    }
-    console.log(selectedDates[0] + ": " + selectedDates[1]);
+    // console.log(
+    //   selectedDates
+    //   // format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
+    //   // format(selectedDates[1], "yyyy-MM-dd hh:mm:ss")
+    // );
+    // if (!selectedDates[0] || !selectedDates[1]) {
+    //   console.log("none");
+    //   return;
+    // }
+    // console.log(selectedDates[0] + ": " + selectedDates[1]);
     // updateSensors({
     //   start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
     //   end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
@@ -499,6 +503,7 @@ export default function Canvas({ mode }: { mode: string }) {
       .filter((e) => e.used === true)
       .forEach((e) => {
         const dataArray = dataRef.current[e.name];
+        console.log(dataArray);
         const newTemp = getAvg(dataArray);
         updateTemp(fabricRef.current, newTemp, e.id);
       });
@@ -556,7 +561,14 @@ export default function Canvas({ mode }: { mode: string }) {
           )}
           <PanButtons canvas={fabricRef.current} />
           <div className="date-picker-container">
-            <RangeDatepicker selectedDates={selectedDates} onDateChange={setSelectedDates} />
+            <RangeDatepicker
+              selectedDates={selectedDates}
+              onDateChange={(e) => {
+                console.log("date change:", e);
+                setSelectedDates(e);
+                console.log(selectedDates);
+              }}
+            />
           </div>
           <div className="save-buttons">
             {mode === "edit" && (
