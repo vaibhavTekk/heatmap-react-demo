@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+//@ts-nocheck
 import { useToast } from "@chakra-ui/react";
 import { fabric } from "fabric";
 import { useRef, useEffect, useState } from "react";
