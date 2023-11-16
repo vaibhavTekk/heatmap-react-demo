@@ -123,15 +123,6 @@ export default function Canvas({ mode }: { mode: string }) {
     <>
       <div className="navbar">
         {mode === "edit" && <input type="file" className="file-input" onChange={handleInput} />}
-        <div className="pageList">
-          {canvasList ? (
-            canvasList.map((canvas, i) => {
-              return <div>{i}</div>;
-            })
-          ) : (
-            <div>CanvasList empty</div>
-          )}
-        </div>
       </div>
       <div className="container">
         <div className="main-canvas-container" ref={mainCanvasRef}>

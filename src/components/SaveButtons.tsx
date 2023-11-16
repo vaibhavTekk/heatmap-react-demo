@@ -31,7 +31,6 @@ export default function SaveButtons({
           onClick={async () => {
             const promise = LoadFromLocalStorage(canvas);
             toast.promise(promise, {
-              position: "top",
               success: { title: "Success!", description: "Loaded from Local Storage" },
               error: { title: "Failed!", description: "Something wrong" },
               loading: { title: "Loading...", description: "Please wait" },

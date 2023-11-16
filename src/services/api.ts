@@ -13,11 +13,7 @@ export const SensorApi = createApi({
       },
       providesTags: ["SensorData"],
     }),
-    updateSensors: builder.mutation<any, any>({
-      query: ({ start, end }) => `/graph?startDateTime=${start}&endDateTime=${end}`,
-      invalidatesTags: ["SensorData"],
-    }),
   }),
 });
 
-export const { useGetSensorsQuery, useUpdateSensorsMutation } = SensorApi;
+export const { useGetSensorsQuery } = SensorApi;
