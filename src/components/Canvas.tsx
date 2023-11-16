@@ -37,14 +37,46 @@ export default function Canvas({ mode }: { mode: string }) {
 
   const calculateHeatMapRef = useRef(calculateHeatMap);
   // const initialItems = [];
-  const initialDates = [new Date("2023-10-10"), new Date("2023-11-09")];
-
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date("2023-10-10"), new Date("2023-11-09")]);
   const dateRef = useRef(selectedDates);
 
   const [radius, setRadius] = useState<number>(100);
   const radiusRef = useRef(radius);
+  const [canvasList, setCanvasList] = useState<any[]>([]);
 
+  const pushToCanvasList = (canvas: fabric.Canvas | null) => {
+    if (!canvas) {
+      return;
+    }
+    const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
+    setCanvasList([...canvasList, json]);
+  };
+
+  const loadPageFromCanvasList = (canvas: fabric.Canvas | null, pageId: string) => {
+    const json = canvasList.filter((e, i) => i == pageId)[0];
+    if (!json) {
+      return;
+    }
+    canvas.loadFromJSON(JSON.parse(json), () => {
+      if (!mainCanvasRef.current) {
+        return;
+      }
+
+      initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
+      // update the items state according to the imported json
+      setTimeout(() => {
+        const objects = canvas.getObjects();
+        const planObject = objects.filter((e) => e.name === "plan")[0];
+        if (planObject) {
+          planObject.sendToBack();
+        }
+        setLoaded(true);
+        resolve();
+      }, 1000);
+      calculateHeatMap(canvas, heatmapRef.current, radius);
+    });
+  };
+  //automatically refetches when selected dates are updated
   const {
     data,
     isLoading: loading,
@@ -56,10 +88,6 @@ export default function Canvas({ mode }: { mode: string }) {
     },
     { skip: selectedDates.length < 2 }
   );
-
-  useEffect(() => {
-    console.log("SelectedDates:", selectedDates);
-  }, [selectedDates]);
 
   const dataRef = useRef(data);
   useEffect(() => {
@@ -86,11 +114,6 @@ export default function Canvas({ mode }: { mode: string }) {
             // filter date array to date range(using ref)
             console.log(dataRef.current.data);
             const dataArray = dataRef.current.data[currentObj.name];
-            // .filter((e: any) => {
-            //   const date = new Date(e.sensor_epoch_ts);
-            //   // return date >= dateRef.current[0] && date <= dateRef.current[1];
-            //   return true;
-            // });
             const avgTemp = getAvg(dataArray);
             //create pin
             createPin(x, y, avgTemp, currentObj.id, currentObj.name, currentObj.radius, fabricRef.current);
@@ -115,8 +138,7 @@ export default function Canvas({ mode }: { mode: string }) {
         });
         calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
-      .on("object:moving", (e) => {
-        console.log(e);
+      .on("object:moving", () => {
         calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:modified", (e) => {
@@ -184,7 +206,7 @@ export default function Canvas({ mode }: { mode: string }) {
           fabricRef.current.lastPosY = e.clientY;
         }
       })
-      .on("mouse:up", function (opt) {
+      .on("mouse:up", function () {
         // on mouse up we want to recalculate new interaction
         // for all objects, so we call setViewportTransform
         fabricRef.current.setViewportTransform(fabricRef.current.viewportTransform);
@@ -214,6 +236,7 @@ export default function Canvas({ mode }: { mode: string }) {
   const removeRef = useRef(removeFromList);
 
   const handleDelete = (id: string, canvas: fabric.Canvas | null) => {
+    // deletes particular object from the canvas based on the given id and marks the object as unused in items array
     console.log("Object Deleted");
     if (!canvas) {
       throw new Error("Canvas is null");
@@ -386,8 +409,8 @@ export default function Canvas({ mode }: { mode: string }) {
           throw new Error("Canvas not initialized");
         }
         // specify object properties to include in json serialisation
-        const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
-        window.localStorage.setItem("json", JSON.stringify(json));
+        // const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
+        window.localStorage.setItem("json", JSON.stringify(canvasList));
         resolve();
       } catch (error) {
         reject(error);
@@ -405,29 +428,30 @@ export default function Canvas({ mode }: { mode: string }) {
         if (!json) {
           throw new Error("Invalid JSON Data");
         }
-        canvas.loadFromJSON(JSON.parse(json), () => {
-          if (!mainCanvasRef.current) {
-            return;
-          }
+        setCanvasList(JSON.parse(json));
+        // canvas.loadFromJSON(JSON.parse(json), () => {
+        //   if (!mainCanvasRef.current) {
+        //     return;
+        //   }
 
-          initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
-          // update the items state according to the imported json
-          setTimeout(() => {
-            const objects = canvas.getObjects();
-            const planObject = objects.filter((e) => e.name === "plan")[0];
-            if (planObject) {
-              planObject.sendToBack();
-            }
-            objects
-              .filter((e) => e.name == "pin")
-              .forEach((e) => {
-                removeFromList(e.id);
-              });
-            setLoaded(true);
-            resolve();
-          }, 1000);
-          calculateHeatMap(canvas, heatmapRef.current, radius);
-        });
+        //   initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
+        //   // update the items state according to the imported json
+        //   setTimeout(() => {
+        //     const objects = canvas.getObjects();
+        //     const planObject = objects.filter((e) => e.name === "plan")[0];
+        //     if (planObject) {
+        //       planObject.sendToBack();
+        //     }
+        //     objects
+        //       .filter((e) => e.name == "pin")
+        //       .forEach((e) => {
+        //         removeFromList(e.id);
+        //       });
+        //     setLoaded(true);
+        //     resolve();
+        //   }, 1000);
+        //   calculateHeatMap(canvas, heatmapRef.current, radius);
+        // });
       } catch (error) {
         reject(error);
       }
@@ -489,20 +513,6 @@ export default function Canvas({ mode }: { mode: string }) {
 
   // change the pin details and heatmap based on the date range
   useEffect(() => {
-    // console.log(
-    //   selectedDates
-    //   // format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
-    //   // format(selectedDates[1], "yyyy-MM-dd hh:mm:ss")
-    // );
-    // if (!selectedDates[0] || !selectedDates[1]) {
-    //   console.log("none");
-    //   return;
-    // }
-    // console.log(selectedDates[0] + ": " + selectedDates[1]);
-    // updateSensors({
-    //   start: format(selectedDates[0], "yyyy-MM-dd hh:mm:ss"),
-    //   end: format(selectedDates[1], "yyyy-MM-dd hh:mm:ss"),
-    // });
     items
       .filter((e) => e.used === true)
       .forEach((e) => {
@@ -514,10 +524,6 @@ export default function Canvas({ mode }: { mode: string }) {
         updateTemp(fabricRef.current, newTemp, e.id);
       });
     calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
-    // setTimeout(() => {
-    //   calculateHeatMap(fabricRef.current,heatmapRef.current,radius);
-    // }, 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   const mainCanvasRef = useRef<HTMLDivElement>(null);
@@ -527,24 +533,16 @@ export default function Canvas({ mode }: { mode: string }) {
   return (
     <>
       <div className="navbar">
-        {/* {mode === "edit" ? (
-          <Button
-            onClick={() => {
-              navigate("/view");
-            }}
-          >
-            View
-          </Button>
-        ) : (
-          <Button
-            onClick={() => {
-              navigate("/");
-            }}
-          >
-            Edit
-          </Button>
-        )} */}
         {mode === "edit" && <input type="file" className="file-input" onChange={handleInput} />}
+        <div className="pageList">
+          {canvasList ? (
+            canvasList.map((canvas, i) => {
+              return <div>{i}</div>;
+            })
+          ) : (
+            <div>CanvasList empty</div>
+          )}
+        </div>
       </div>
       <div className="container">
         <div className="main-canvas-container" ref={mainCanvasRef}>
