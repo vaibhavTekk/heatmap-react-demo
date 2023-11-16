@@ -3,10 +3,13 @@ import { zoomCanvas, zoomCanvasToValue } from "../utils/ZoomPanHandlers";
 import { Slider, SliderTrack, SliderFilledTrack, SliderThumb, Icon } from "@chakra-ui/react";
 import { TbZoomReset } from "react-icons/tb";
 
-export default function ZoomSlider({ canvas }: { canvas: fabric.Canvas }) {
+export default function ZoomSlider({ canvas }: { canvas: fabric.Canvas | null }) {
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
+    if (!canvas) {
+      return;
+    }
     zoomCanvasToValue(canvas, zoom);
   }, [zoom, canvas]);
 
