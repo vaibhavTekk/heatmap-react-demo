@@ -34,6 +34,7 @@ h1 {
   justify-items: center;
   flex: 4;
   position: relative !important;
+  /* z-index: 12; */
 }
 .heatmap {
   position: absolute !important;

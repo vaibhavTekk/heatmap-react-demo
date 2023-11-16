@@ -36,7 +36,6 @@ export default function Canvas({ mode }: { mode: string }) {
   const [loaded, setLoaded] = useState(false);
 
   const calculateHeatMapRef = useRef(calculateHeatMap);
-
   // const initialItems = [];
   const initialDates = [new Date("2023-10-10"), new Date("2023-11-09")];
 
@@ -116,7 +115,8 @@ export default function Canvas({ mode }: { mode: string }) {
         });
         calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
-      .on("object:moving", () => {
+      .on("object:moving", (e) => {
+        console.log(e);
         calculateHeatMapRef.current(fabricRef.current, heatmapRef.current, radiusRef.current);
       })
       .on("object:modified", (e) => {
@@ -506,7 +506,9 @@ export default function Canvas({ mode }: { mode: string }) {
     items
       .filter((e) => e.used === true)
       .forEach((e) => {
-        const dataArray = dataRef.current[e.name];
+        console.log(e);
+        // console.log(dataRef.current);
+        const dataArray = dataRef.current.data[e.name];
         console.log(dataArray);
         const newTemp = getAvg(dataArray);
         updateTemp(fabricRef.current, newTemp, e.id);

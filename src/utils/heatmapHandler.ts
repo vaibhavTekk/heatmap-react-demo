@@ -16,6 +16,7 @@ export const calculateHeatMap = (canvas: fabric.Canvas | null, heatmap: any, rad
       return { x: e.left + 20, y: e.top + 20, value: e.temp * e.opacity, radius: radius };
     });
     heatmap.setData({ max, data: points });
+    heatmap.repaint();
   }
   canvas.renderAll();
 };
