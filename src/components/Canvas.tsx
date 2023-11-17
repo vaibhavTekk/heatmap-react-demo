@@ -52,13 +52,14 @@ export default function Canvas({ mode }: { mode: string }) {
     items,
     setItems,
     loaded,
-    setLoaded,
     LoadFromLocalStorage,
     currentPin,
     handleDelete,
     saveToLocalStorage,
     convertToImage,
     calculateHeatMap,
+    handleInput,
+    fileType,
   } = useCanvas(mainCanvasRef, canvasRef, data, mode);
 
   useEffect(() => {
@@ -85,40 +86,6 @@ export default function Canvas({ mode }: { mode: string }) {
       calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
     }
   }, [data, loading, error, toast]);
-
-  const [fileType, setFileType] = useState("");
-  const handleInput = async (e: ChangeEvent<HTMLInputElement>) => {
-    try {
-      if (!fabricRef.current) {
-        throw new Error("Canvas not Loaded");
-      }
-
-      if (!e.target.files || e.target.files.length < 1) {
-        throw new Error("Files not Uploaded");
-      }
-
-      const fileExtension = e.target.files[0].name.split(".").slice(-1)[0];
-      if (fileExtension === "dxf") {
-        console.log("dxf");
-        setFileType("dxf");
-        await addDxfToCanvas(e.target.files[0], fabricRef.current);
-        toast({ status: "success", title: "Loaded DXF File" });
-        toast({ status: "info", title: "Increase stroke width if floor plan is barely visible" });
-      } else if (fileExtension === "pdf") {
-        console.log("pdf");
-        const tmppath = URL.createObjectURL(e.target.files[0]);
-        await getPDFImageObject(tmppath, fabricRef.current);
-        toast({ status: "success", title: "Loaded PDF File" });
-      } else {
-        throw new Error("wrong file extension!!");
-      }
-      if (mode === "edit") {
-        setLoaded(true);
-      }
-    } catch (err) {
-      toast({ status: "error", title: "An Error Occured" });
-    }
-  };
 
   return (
     <>

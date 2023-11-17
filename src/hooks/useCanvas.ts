@@ -3,12 +3,14 @@
 //@ts-nocheck
 import { useToast } from "@chakra-ui/react";
 import { fabric } from "fabric";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, ChangeEvent } from "react";
 import { getAvg } from "../utils/tempHandler";
 import { createPin, updateTemp } from "../utils/objectHandlers";
 import h337, { HeatmapConfiguration } from "heatmap.js";
 import { calculateHeatMap } from "../utils/heatmapHandler";
 import { produce } from "immer";
+import { addDxfToCanvas } from "../utils/dxfHandler";
+import { getPDFImageObject } from "../utils/pdfHandler";
 
 function useCanvas(
   mainCanvasRef: React.RefObject<HTMLDivElement>,
@@ -425,6 +427,40 @@ function useCanvas(
     calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
   }, [data]);
 
+  const [fileType, setFileType] = useState("");
+  const handleInput = async (e: ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!fabricRef.current) {
+        throw new Error("Canvas not Loaded");
+      }
+
+      if (!e.target.files || e.target.files.length < 1) {
+        throw new Error("Files not Uploaded");
+      }
+
+      const fileExtension = e.target.files[0].name.split(".").slice(-1)[0];
+      if (fileExtension === "dxf") {
+        console.log("dxf");
+        setFileType("dxf");
+        await addDxfToCanvas(e.target.files[0], fabricRef.current);
+        toast({ status: "success", title: "Loaded DXF File" });
+        toast({ status: "info", title: "Increase stroke width if floor plan is barely visible" });
+      } else if (fileExtension === "pdf") {
+        console.log("pdf");
+        const tmppath = URL.createObjectURL(e.target.files[0]);
+        await getPDFImageObject(tmppath, fabricRef.current);
+        toast({ status: "success", title: "Loaded PDF File" });
+      } else {
+        throw new Error("wrong file extension!!");
+      }
+      if (mode === "edit") {
+        setLoaded(true);
+      }
+    } catch (err) {
+      toast({ status: "error", title: "An Error Occured" });
+    }
+  };
+
   return {
     fabricRef,
     heatmapRef,
@@ -442,6 +478,8 @@ function useCanvas(
     saveToLocalStorage,
     convertToImage,
     calculateHeatMap,
+    handleInput,
+    fileType,
   };
 }
 
