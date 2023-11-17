@@ -71,8 +71,8 @@ export default function Canvas({ mode }: { mode: string }) {
       toast({ status: "success", title: "Sensor Data Loaded!" });
       if (items.length < 1) {
         const itemsArray = Object.entries(data.data).map((e, i) => {
-          const oldItems = fabricRef.current?.getObjects();
-          console.log(oldItems.filter((e) => e.id === e[0]));
+          // const oldItems = fabricRef.current?.getObjects();
+          // console.log(oldItems.filter((e) => e.id === e[0]));
           return {
             id: e[0],
             name: e[0],

@@ -75,15 +75,15 @@ function useCanvas(
 
     const config: HeatmapConfiguration = {
       container,
-      minOpacity: 0.2,
+      minOpacity: 0.01,
       maxOpacity: 1,
-      blur: 0.75,
+      blur: 0.4,
       gradient: {
         // enter n keys between 0 and 1 here
         // for gradient color customization
-        ".01": "green",
-        ".25": "#FFBF00", //amber
-        ".5": "red",
+        ".5": "blue",
+        ".8": "#FFBF00", //amber
+        "1": "red",
       },
     };
     heatmapRef.current = h337.create(config);
