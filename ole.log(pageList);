@@ -1,0 +1,108 @@
+[33mcommit de26226586ad8f921c47b1d2f00d6f36b0b7dda2[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 17:51:56 2023 +0530
+
+    updated redux code
+
+[33mcommit 773d3d059ce1afb32be1267318ac1c2caf121fb9[m
+Merge: ed74957 66bf96b
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 17:02:29 2023 +0530
+
+    merged from hooks
+
+[33mcommit 66bf96b0abefa85ed9e34c895cc7b59a3c2ef394[m[33m ([m[1;32mhooks[m[33m)[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 16:59:04 2023 +0530
+
+    split into componenents further
+
+[33mcommit 2ee5c67741383869385d06ffb81f69d243766607[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 15:53:09 2023 +0530
+
+    working useCanvas hook
+
+[33mcommit ed749574043fc7f1d8e9f313a7b4fd4861df28a0[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 13:36:58 2023 +0530
+
+    Added functions to handleCanvas list
+
+[33mcommit a2b695d85533327441366b3dd0a1d14d4a178430[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 16 10:47:18 2023 +0530
+
+    fixed date change
+
+[33mcommit 65f13f18433f89926a7b867311a9b4664f371939[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Tue Nov 14 15:17:31 2023 +0530
+
+    date state change
+
+[33mcommit d2f7d03d643348a015996576cbd5c1a2a7bc13c1[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Tue Nov 14 12:22:15 2023 +0530
+
+    fetch logic
+
+[33mcommit 15ce150b22f6e8302245cb301b97d9da012695f4[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Fri Nov 10 14:43:22 2023 +0530
+
+    fixed heatmap not loading issue
+
+[33mcommit fccd4d16bb4394b4c56922665393024c4ca1a32f[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Fri Nov 10 10:27:02 2023 +0530
+
+    added zoom feature
+
+[33mcommit 5014fd4df81cd47a9f89fcef6304123a81e0474a[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 9 13:53:34 2023 +0530
+
+    disabled date range temporarily, fixed order of items in view page
+
+[33mcommit 36c0f9374a21ab7dbbcb33f5c16420432367d89f[m[33m ([m[1;32mcontext[m[33m)[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Fri Nov 3 11:50:40 2023 +0530
+
+    working date range and added comments
+
+[33mcommit 87f8aa6eb3b7fca5ed8a8eac68c8051561267e0c[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Thu Nov 2 11:47:33 2023 +0530
+
+    working stroke width adjustment
+
+[33mcommit 1310bc26c54115450d877004c21388d739d74d8a[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Tue Oct 31 12:56:46 2023 +0530
+
+    boundary, bounding box intersection
+
+[33mcommit 852e41b97fdbe2cfbf260cb576e360817f8bdfae[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Mon Oct 30 16:47:26 2023 +0530
+
+    working boundary
+
+[33mcommit 7a9fff67cfdf735cde2deb688ef62a75cc933da4[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Wed Oct 25 15:16:29 2023 +0530
+
+    working icons
+
+[33mcommit f0bb14471075e1e35c651ef9c6894ae5209ae0b3[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Fri Oct 20 15:20:56 2023 +0530
+
+    setup panning zooming and fixed canvas height
+
+[33mcommit 42d027e1fa5ad785c96127934f9223db39b7783f[m
+Author: Vaibhav Tekkalur <59783171+vaibhavTekk@users.noreply.github.com>
+Date:   Fri Oct 20 11:23:18 2023 +0530
+
+    setup heatmap and canvas

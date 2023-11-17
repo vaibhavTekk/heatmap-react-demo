@@ -68,19 +68,20 @@ export default function Canvas({ mode }: { mode: string }) {
     }
     if (data && data.data) {
       toast({ status: "success", title: "Sensor Data Loaded!" });
-      console.log(data);
-      const itemsArray = Object.entries(data.data).map((e, i) => {
-        const oldItems = fabricRef.current?.getObjects();
-        console.log(oldItems.filter((e) => e.id === e[0]));
-        return {
-          id: e[0],
-          name: e[0],
-          // if the array already exists and the item is marked true or false then that needs to be copied over
-          // used: oldItems[0] ? true : false,
-          used: false,
-        };
-      });
-      setItems(itemsArray);
+      if (items.length < 1) {
+        const itemsArray = Object.entries(data.data).map((e, i) => {
+          const oldItems = fabricRef.current?.getObjects();
+          console.log(oldItems.filter((e) => e.id === e[0]));
+          return {
+            id: e[0],
+            name: e[0],
+            // if the array already exists and the item is marked true or false then that needs to be copied over
+            // used: oldItems[0] ? true : false,
+            used: false,
+          };
+        });
+        setItems(itemsArray);
+      }
       calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
     }
   }, [data, loading, error, toast]);
