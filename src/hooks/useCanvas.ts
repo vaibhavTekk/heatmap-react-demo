@@ -105,6 +105,7 @@ function useCanvas(
           return;
         }
         const { x, y } = fabricRef.current.getPointer(e.e);
+        // transfer data along with drop element
         const id = e.e.dataTransfer.getData("text");
         const currentObj = itemsRef.current.filter((e) => e.id === id)[0];
         if (currentObj.used === false) {
