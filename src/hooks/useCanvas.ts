@@ -41,6 +41,77 @@ function useCanvas(
     calculateHeatMap(fabricRef.current, heatmapRef.current, radius);
   }, [radius, loaded]);
 
+  const [currentPage, setCurrentPage] = useState(-1);
+  const previousPageRef = useRef(currentPage);
+
+  const [pageList, setPageList] = useState<any[]>([]);
+
+  const addPage = (page: any) => {
+    setPageList((prev) => [...prev, page]);
+  };
+
+  const updatePage = (pageId: number, page: any) => {
+    if (pageId < pageList.length) {
+      setPageList(
+        produce((draft) => {
+          if (pageId > -1) {
+            draft[pageId] = page;
+          }
+        })
+      );
+    } else {
+      setPageList((prev) => [...prev, page]);
+    }
+  };
+
+  const getPage = (pageId: number) => {
+    const page = pageList[pageId];
+    if (!page) {
+      return null;
+    }
+    return page;
+  };
+
+  const loadPage = (page: any) => {
+    if (!page) {
+      throw new Error("Invalid JSON Data");
+    }
+    fabricRef.current.loadFromJSON(JSON.parse(page), () => {
+      if (!mainCanvasRef.current) {
+        return;
+      }
+
+      initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
+      // update the items state according to the imported json
+      setTimeout(() => {
+        const objects = fabricRef.current.getObjects();
+        const planObject = objects.filter((e) => e.name === "plan")[0];
+        if (planObject) {
+          planObject.sendToBack();
+        }
+        objects
+          .filter((e) => e.name == "pin")
+          .forEach((e) => {
+            removeFromList(e.id);
+          });
+        setLoaded(true);
+        resolve();
+      }, 1000);
+      calculateHeatMap(canvas, heatmapRef.current, radius);
+    });
+  };
+
+  useEffect(() => {
+    if (!fabricRef.current) {
+      return;
+    }
+    const json = fabricRef.current.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
+    updatePage(previousPageRef.current, json);
+    const newPage = getPage(currentPage);
+    loadPage(newPage);
+    previousPageRef.current = currentPage;
+  }, [currentPage]);
+
   const heatmapRef = useRef<any>(null);
   const heatmapCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -315,29 +386,34 @@ function useCanvas(
         if (!json) {
           throw new Error("Invalid JSON Data");
         }
-        canvas.loadFromJSON(JSON.parse(json), () => {
-          if (!mainCanvasRef.current) {
-            return;
-          }
+        const jsonPageList = JSON.parse(json);
+        setPageList(jsonPageList);
+        console.log(pageList);
 
-          initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
-          // update the items state according to the imported json
-          setTimeout(() => {
-            const objects = canvas.getObjects();
-            const planObject = objects.filter((e) => e.name === "plan")[0];
-            if (planObject) {
-              planObject.sendToBack();
-            }
-            objects
-              .filter((e) => e.name == "pin")
-              .forEach((e) => {
-                removeFromList(e.id);
-              });
-            setLoaded(true);
-            resolve();
-          }, 1000);
-          calculateHeatMap(canvas, heatmapRef.current, radius);
-        });
+        resolve();
+        // canvas.loadFromJSON(JSON.parse(json), () => {
+        //   if (!mainCanvasRef.current) {
+        //     return;
+        //   }
+
+        //   initHeatmap(mainCanvasRef.current?.clientWidth, mainCanvasRef.current?.clientHeight);
+        //   // update the items state according to the imported json
+        //   setTimeout(() => {
+        //     const objects = canvas.getObjects();
+        //     const planObject = objects.filter((e) => e.name === "plan")[0];
+        //     if (planObject) {
+        //       planObject.sendToBack();
+        //     }
+        //     objects
+        //       .filter((e) => e.name == "pin")
+        //       .forEach((e) => {
+        //         removeFromList(e.id);
+        //       });
+        //     setLoaded(true);
+        //     resolve();
+        //   }, 1000);
+        //   calculateHeatMap(canvas, heatmapRef.current, radius);
+        // });
       } catch (error) {
         reject(error);
       }
@@ -352,8 +428,8 @@ function useCanvas(
           throw new Error("Canvas not initialized");
         }
         // specify object properties to include in json serialisation
-        const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
-        window.localStorage.setItem("json", JSON.stringify(json));
+        // const json = canvas.toJSON(["hasControls", "name", "temp", "selectable", "type", "id", "radius"]);
+        window.localStorage.setItem("json", JSON.stringify(pageList));
         resolve();
       } catch (error) {
         reject(error);
@@ -442,6 +518,7 @@ function useCanvas(
     saveToLocalStorage,
     convertToImage,
     calculateHeatMap,
+    pageList,
   };
 }
 

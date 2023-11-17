@@ -174,3 +174,11 @@ ul {
   margin-top: 12px;
   width: 75%;
 }
+
+.pageList {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  justify-items: center;
+  align-items: center;
+}
