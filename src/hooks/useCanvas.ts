@@ -75,6 +75,16 @@ function useCanvas(
 
     const config: HeatmapConfiguration = {
       container,
+      minOpacity: 0.2,
+      maxOpacity: 1,
+      blur: 0.75,
+      gradient: {
+        // enter n keys between 0 and 1 here
+        // for gradient color customization
+        ".01": "green",
+        ".25": "#FFBF00", //amber
+        ".5": "red",
+      },
     };
     heatmapRef.current = h337.create(config);
     heatmapCanvasRef.current = heatmapRef.current._renderer.canvas;
@@ -84,7 +94,7 @@ function useCanvas(
         selectable: false,
         name: "heatmap",
         excludeFromExport: true,
-        opacity: 0.7,
+        opacity: 1,
       });
       fabricRef.current?.add(heatmapImage);
       heatmapImage.sendToBack();
